@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BKM Document Tools</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --bs-primary-rgb: 66, 133, 244; --bs-secondary-rgb: 108, 117, 125;
+            --bs-success-rgb: 52, 168, 83;  --bs-danger-rgb: 234, 67, 53;
+            --bs-info-rgb: 26, 115, 232;    --bs-warning-rgb: 251, 188, 5;
+        }
+        body { padding-top: 80px; padding-bottom: 70px; background-color: #f8f9fa; }
+        .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.1); }
+        .container { max-width: 960px; }
+        .form-section { margin-bottom: 30px; padding: 30px; border: none; border-radius: .5rem; background-color: #fff; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, .075); }
+        .nav-pills .nav-link { border-radius: .375rem; margin-right: 5px; margin-bottom: 5px; color: var(--bs-primary); font-weight: 500; background-color: #e9ecef;}
+        .nav-pills .nav-link:hover { background-color: #dde1e4;}
+        .nav-pills .nav-link.active { background-color: var(--bs-primary); color: #fff; }
+        .tab-content { margin-top: 20px; }
+        .tab-content > .tab-pane { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; }
+        .tab-content > .active { display: block; opacity: 1; }
+        .form-label { font-weight: 500; }
+        .footer { position: fixed; left: 0; bottom: 0; width: 100%; background-color: #e9ecef; color: #6c757d; text-align: center; padding: 10px 0; border-top: 1px solid #ced4da; font-size: 0.9em; z-index: 1000; }
+        .download-section .btn i, .converter-download-section .btn i { margin-right: 6px; font-size: 1.1em; vertical-align: -0.1em; }
+        .spinner-border-sm { width: 1em; height: 1em; vertical-align: -0.125em; margin-right: 0.4em; }
+        .format-options .form-check { padding-left: 1.8em; }
+        .format-options .form-check-input { margin-top: 0.4em; }
+        .format-options label { margin-bottom: 0; }
+        .help-block { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: .25rem; padding: .75rem 1rem; margin-top: .5rem; font-size: 0.9em; color: #495057; }
+        .help-block code { font-size: 0.95em; color: #d63384;}
+        .help-block strong { color: #212529;}
+        .alert i { font-size: 1.2em; margin-right: 0.5rem; vertical-align: -0.15em;}
+        .output-area { margin-top: 2rem;}
+        .manual-entry-block { border: 1px dashed #adb5bd; padding: 20px; margin-bottom: 20px; border-radius: .375rem; background-color: #f8f9fa; }
+        .template-choice-group .form-check { margin-bottom: 0.5rem; }
+        .template-selector-group, .new-template-upload-group {
+            padding: 1rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 0.25rem;
+            background-color: #f8f9fa;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top">
+        <div class="container"> <a class="navbar-brand fw-bold" href="{{ url_for('index') }}"> <i class="bi bi-tools text-primary"></i> BKM Document Tools </a> </div>
+    </nav>
+
+    <div class="container">
+        <header class="text-center my-5">
+             <h1 class="display-6">Document Generation & Conversion</h1>
+             <p class="lead text-muted">Create Offer Letters, Relieving Letters, Manage Templates, or Convert Files.</p>
+        </header>
+
+        <!-- Flash Messages Area -->
+        <div id="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
+                    {% if category == 'success' %}<i class="bi bi-check-circle-fill"></i>{% endif %}
+                    {% if category == 'danger' %}<i class="bi bi-exclamation-triangle-fill"></i>{% endif %}
+                    {% if category == 'warning' %}<i class="bi bi-exclamation-triangle"></i>{% endif %}
+                    {% if category == 'info' %}<i class="bi bi-info-circle-fill"></i>{% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        </div> <!-- /#flash-messages -->
+
+
+        <!-- Dynamic Output Areas -->
+        <div class="output-area">
+            <!-- Offer/Relieving Letter Download Area -->
+            {% if letter_type and (docx_download or pdf_download) and recipient_name %}
+            <div class="alert alert-success download-section mb-4" role="alert">
+                {% if letter_type == 'offer' %}
+                    <h4 class="alert-heading"><i class="bi bi-file-earmark-check-fill"></i> Offer Letter Generated!</h4> <p>Offer letter document(s) for <strong>{{ recipient_name | e }}</strong> ready.</p>
+                {% elif letter_type == 'relieving' %}
+                     <h4 class="alert-heading"><i class="bi bi-person-check-fill"></i> Relieving Letter Generated!</h4> <p>Relieving letter document(s) for <strong>{{ recipient_name | e }}</strong> ready.</p>
+                {% else %} <h4 class="alert-heading"><i class="bi bi-check-circle-fill"></i> Document(s) Generated!</h4> <p>Document(s) for <strong>{{ recipient_name | e }}</strong> ready.</p>
+                {% endif %} <hr> <p class="mb-2">Download links:</p>
+                {% if docx_download %} <a href="{{ url_for('download_file', filename=docx_download) }}" class="btn btn-primary mb-1 me-2"> <i class="bi bi-file-earmark-word-fill"></i> DOCX </a> {% endif %}
+                {% if pdf_download %} <a href="{{ url_for('download_file', filename=pdf_download) }}" class="btn btn-danger mb-1"> <i class="bi bi-file-earmark-pdf-fill"></i> PDF </a> {% endif %}
+            </div>
+            {% endif %}
+            <!-- Converter Download Area -->
+            {% if converter_pdf_download and original_docx_filename %}
+            <div class="alert alert-info converter-download-section mb-4" role="alert">
+                <h4 class="alert-heading"><i class="bi bi-check-lg"></i> Conversion Successful!</h4> <p>File <strong>{{ original_docx_filename | e }}</strong> converted.</p> <hr> <p class="mb-2">Download link:</p>
+                <a href="{{ url_for('download_file', filename=converter_pdf_download) }}" class="btn btn-danger mb-1"> <i class="bi bi-download"></i> Download PDF </a>
+            </div>
+            {% endif %}
+        </div><!-- /.output-area -->
+        <div class="download-separator"></div>
+
+
+        <!-- Tab Navigation -->
+        <ul class="nav nav-pills mb-3 justify-content-center flex-wrap" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation"> <button class="nav-link" id="offer-single-tab-pill" data-bs-toggle="pill" data-bs-target="#offer-single-content" type="button"> <i class="bi bi-file-person"></i> Single Offer </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="offer-manual-tab-pill" data-bs-toggle="pill" data-bs-target="#offer-manual-content" type="button"> <i class="bi bi-pencil-square"></i> Manual Bulk Offer </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="offer-csv-tab-pill" data-bs-toggle="pill" data-bs-target="#offer-csv-content" type="button"> <i class="bi bi-filetype-csv"></i> Offer CSV </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="offer-json-tab-pill" data-bs-toggle="pill" data-bs-target="#offer-json-content" type="button"> <i class="bi bi-filetype-json"></i> Offer JSON </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="relieving-single-tab-pill" data-bs-toggle="pill" data-bs-target="#relieving-single-content" type="button"> <i class="bi bi-person-dash"></i> Single Relieving </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="relieving-manual-tab-pill" data-bs-toggle="pill" data-bs-target="#relieving-manual-content" type="button"> <i class="bi bi-pencil-fill"></i> Manual Bulk Relieving </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="relieving-csv-tab-pill" data-bs-toggle="pill" data-bs-target="#relieving-csv-content" type="button"> <i class="bi bi-filetype-csv"></i> Relieving CSV </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="relieving-json-tab-pill" data-bs-toggle="pill" data-bs-target="#relieving-json-content" type="button"> <i class="bi bi-filetype-json"></i> Relieving JSON </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="manage-templates-tab-pill" data-bs-toggle="pill" data-bs-target="#manage-templates-content" type="button"> <i class="bi bi-collection"></i> Manage Templates </button> </li>
+             <li class="nav-item" role="presentation"> <button class="nav-link" id="converter-tab-pill" data-bs-toggle="pill" data-bs-target="#converter-content" type="button"> <i class="bi bi-arrow-repeat"></i> Converter </button> </li>
+        </ul>
+
+        <!-- Macro for Template Selection Inputs -->
+        {% macro template_selection_inputs(form_prefix, user_templates_list, form_id_suffix="") %}
+        <div class="mb-4">
+            <label class="form-label fw-bold">1. Choose Template Source <span class="text-danger">*</span></label>
+            <div class="template-choice-group">
+                <div class="form-check">
+                    <input class="form-check-input template-choice-radio" type="radio" name="template_choice" id="{{ form_prefix }}-template-choice-existing{{ form_id_suffix }}" value="existing_template" data-form-prefix="{{ form_prefix }}" data-form-id-suffix="{{ form_id_suffix }}" checked>
+                    <label class="form-check-label" for="{{ form_prefix }}-template-choice-existing{{ form_id_suffix }}">Use Existing Template from Library</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input template-choice-radio" type="radio" name="template_choice" id="{{ form_prefix }}-template-choice-new{{ form_id_suffix }}" value="upload_new_template" data-form-prefix="{{ form_prefix }}" data-form-id-suffix="{{ form_id_suffix }}">
+                    <label class="form-check-label" for="{{ form_prefix }}-template-choice-new{{ form_id_suffix }}">Upload New Template</label>
+                </div>
+            </div>
+
+            <div class="{{ form_prefix }}-existing-template-group{{ form_id_suffix }} template-selector-group" style="display: none;">
+                <label for="{{ form_prefix }}-selected-template{{ form_id_suffix }}" class="form-label">Select Template:</label>
+                <select class="form-select" id="{{ form_prefix }}-selected-template{{ form_id_suffix }}" name="selected_template_filename">
+                    <option value="" selected disabled>-- Select from Library --</option>
+                    {% if user_templates_list %}
+                        {% for template_name in user_templates_list %}
+                        <option value="{{ template_name }}">{{ template_name }}</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="" disabled>No templates in library. Upload one via "Manage Templates" tab.</option>
+                    {% endif %}
+                </select>
+                 <div class="form-text">Templates stored in your library. Add more via the "Manage Templates" tab.</div>
+            </div>
+
+            <div class="{{ form_prefix }}-new-template-upload-group{{ form_id_suffix }} template-selector-group" style="display: none;">
+                <label for="{{ form_prefix }}-template-file-upload{{ form_id_suffix }}" class="form-label">Upload .docx Template:</label>
+                <input type="file" class="form-control" id="{{ form_prefix }}-template-file-upload{{ form_id_suffix }}" name="template_file" accept=".docx">
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="save_uploaded_template_to_library" id="{{ form_prefix }}-save-to-library{{ form_id_suffix }}" value="on" checked>
+                    <label class="form-check-label" for="{{ form_prefix }}-save-to-library{{ form_id_suffix }}">
+                        Add this template to my library
+                    </label>
+                </div>
+                 <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="overwrite_if_exists_in_library_from_form" id="{{ form_prefix }}-overwrite-if-exists{{ form_id_suffix }}" value="on">
+                    <label class="form-check-label" for="{{ form_prefix }}-overwrite-if-exists{{ form_id_suffix }}">
+                        Overwrite if template with same name exists in library (when adding)
+                    </label>
+                </div>
+                <div class="form-text">The .docx template with {placeholders}. For explicit overwrite control beyond this checkbox, use the "Manage Templates" tab.</div>
+            </div>
+        </div>
+        {% endmacro %}
+
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="pills-tabContent">
+
+            <!-- === OFFER LETTER TABS === -->
+            <div class="tab-pane fade" id="offer-single-content" role="tabpanel" aria-labelledby="offer-single-tab-pill" tabindex="0">
+                 <div class="form-section">
+                    <h2 class="mb-4 text-primary"><i class="bi bi-file-person-fill"></i> Generate Single Offer Letter</h2>
+                    <form id="offer-single-form" action="{{ url_for('handle_generate_single_offer') }}" method="post" enctype="multipart/form-data">
+                        {{ template_selection_inputs('offer-single', user_templates) }}
+                        <hr class="my-4">
+                        <p class="fs-5 mb-3"><strong>2. Candidate Details <span class="text-danger">*</span></strong></p>
+                         <div class="row g-3">
+                             <div class="col-md-6 mb-3"> <label for="candidate_name" class="form-label">{candidate name}</label> <input type="text" class="form-control" id="candidate_name" name="candidate name" required> </div>
+                             <div class="col-md-6 mb-3"> <label for="send_date_offer" class="form-label">{send date}</label> <input type="text" class="form-control" id="send_date_offer" name="send_date" placeholder="e.g., 3rd May 2024" required> </div>
+                             <div class="col-md-6 mb-3"> <label for="designation" class="form-label">{designation}</label> <input type="text" class="form-control" id="designation" name="designation" placeholder="e.g., Software Engineer" required> </div>
+                             <div class="col-md-6 mb-3"> <label for="fdesignation" class="form-label">{fdesignation} <small class="text-muted">(Optional)</small></label> <input type="text" class="form-control" id="fdesignation" name="fdesignation" placeholder="e.g., Junior Software Engineer"> </div>
+                             <div class="col-md-6 mb-3"> <label for="email" class="form-label">{email}</label> <input type="email" class="form-control" id="email" name="email" required> </div>
+                             <div class="col-md-6 mb-3"> <label for="mobile_number" class="form-label">{mobile number}</label> <input type="tel" class="form-control" id="mobile_number_offer_single" name="mobile_number" required> </div>
+                             <div class="col-md-6 mb-3"> <label for="dear_name" class="form-label">{dear name}</label> <input type="text" class="form-control" id="dear_name_offer_single" name="dear_name" placeholder="e.g., John" required> </div>
+                             <div class="col-md-6 mb-3"> <label for="joining_date_offer" class="form-label">{joining date}</label> <input type="text" class="form-control" id="joining_date_offer" name="joining_date" placeholder="e.g., 10th May 2024" required> </div>
+                             <div class="col-md-6 mb-3"> <label for="hr_name_offer" class="form-label">{hr name}</label> <input type="text" class="form-control" id="hr_name_offer" name="hr_name" required> </div>
+                             <div class="col-md-6 mb-3"> <label for="lpa" class="form-label">{lpa} <small class="text-muted">(LPA)</small></label> <input type="text" class="form-control" id="lpa" name="lpa" placeholder="e.g., 6" required> <div class="form-text">CTC in Lakhs Per Annum.</div> </div>
+                         </div> <hr class="my-4">
+                         <button type="submit" class="btn btn-primary btn-lg w-100"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-send-plus-fill"></i> Generate Offer Letter </button>
+                    </form>
+                </div>
+            </div>
+
+             <div class="tab-pane fade" id="offer-manual-content" role="tabpanel" aria-labelledby="offer-manual-tab-pill" tabindex="0">
+                <div class="form-section">
+                    <h2 class="mb-4 text-warning"><i class="bi bi-pencil-square"></i> Manual Bulk Offer Entry</h2>
+                     <form id="offer-manual-form" action="{{ url_for('handle_generate_bulk_manual_offer') }}" method="post" enctype="multipart/form-data">
+                        {{ template_selection_inputs('offer-manual', user_templates) }}
+                        <hr>
+                        <div class="mb-4 row g-3 align-items-end border-bottom pb-3">
+                             <div class="col-md-8"> <label for="num_letters_manual_offer" class="form-label fw-bold">2. How many offer letters?</label> <input type="number" class="form-control" id="num_letters_manual_offer" name="num_letters_display_only" min="1" max="20" value="2"> <div class="form-text">Enter number of letters (max 20). This number is only for UI generation below.</div> </div>
+                             <div class="col-md-4"> <button type="button" class="btn btn-secondary w-100" id="generate-manual-offer-forms-btn">Load Offer Entry Forms</button> </div>
+                        </div>
+                        <p class="fs-5 mb-3"><strong>3. Fill Details for Each Offer Letter: <span class="text-danger">*</span></strong></p>
+                        <div id="manual-offer-forms-container" class="mb-4"> <p class="text-center text-muted">(Click "Load Offer Entry Forms" above first)</p> </div>
+                        <div class="mb-4 format-options"> <label class="form-label d-block fw-bold">4. Choose Output Format(s):</label> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="manual_offer_format_both" value="both" checked> <label class="form-check-label" for="manual_offer_format_both">DOCX & PDF</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="manual_offer_format_docx" value="docx"> <label class="form-check-label" for="manual_offer_format_docx">DOCX Only</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="manual_offer_format_pdf" value="pdf"> <label class="form-check-label" for="manual_offer_format_pdf">PDF Only</label> </div> <div class="form-text text-muted mt-1"><small>PDF generation depends on server setup.</small></div> </div> <hr class="my-4">
+                        <button type="submit" class="btn btn-warning btn-lg w-100 text-dark"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-stack"></i> Generate All Manual Offer Letters </button>
+                    </form>
+                </div>
+             </div>
+
+            <div class="tab-pane fade" id="offer-csv-content" role="tabpanel" aria-labelledby="offer-csv-tab-pill" tabindex="0">
+                 <div class="form-section">
+                    <h2 class="mb-4 text-success"><i class="bi bi-filetype-csv"></i> Bulk Offer Letters from CSV</h2>
+                    <form id="offer-csv-form" action="{{ url_for('handle_generate_bulk') }}" method="post" enctype="multipart/form-data">
+                         <input type="hidden" name="letter_type" value="offer"> <input type="hidden" name="source_type" value="csv">
+                        {{ template_selection_inputs('offer-csv', user_templates) }}
+                        <div class="mb-3"> <label for="data_offer_csv" class="form-label">2. Candidate Data (CSV) <span class="text-danger">*</span></label> <input type="file" class="form-control" id="data_offer_csv" name="data_file" accept=".csv" required> <div class="help-block"> CSV headers will be used as {placeholders} in your template. E.g., if CSV has header "Candidate Name", use <code>{Candidate Name}</code> in template. Ensure a column named "candidate name" (case-insensitive) exists for naming files.</div> </div>
+                        <div class="mb-4 format-options"> <label class="form-label d-block">3. Output Format(s):</label> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="offer_csv_format_both" value="both" checked> <label class="form-check-label" for="offer_csv_format_both">DOCX & PDF</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="offer_csv_format_docx" value="docx"> <label class="form-check-label" for="offer_csv_format_docx">DOCX Only</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="offer_csv_format_pdf" value="pdf"> <label class="form-check-label" for="offer_csv_format_pdf">PDF Only</label> </div> <div class="form-text text-muted mt-1"><small>PDF generation depends on server setup.</small></div> </div> <hr class="my-4">
+                        <button type="submit" class="btn btn-success btn-lg w-100"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-upload"></i> Generate Bulk Offers (CSV) </button>
+                    </form>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="offer-json-content" role="tabpanel" aria-labelledby="offer-json-tab-pill" tabindex="0">
+                  <div class="form-section">
+                    <h2 class="mb-4 text-info"><i class="bi bi-filetype-json"></i> Bulk Offer Letters from JSON</h2>
+                    <form id="offer-json-form" action="{{ url_for('handle_generate_bulk') }}" method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="letter_type" value="offer"> <input type="hidden" name="source_type" value="json">
+                        {{ template_selection_inputs('offer-json', user_templates) }}
+                        <div class="mb-3"> <label for="data_offer_json" class="form-label">2. Candidate Data (JSON) <span class="text-danger">*</span></label> <input type="file" class="form-control" id="data_offer_json" name="data_file" accept=".json" required> <div class="help-block"> JSON should be an array of objects. Keys in objects will be used as {placeholders}. E.g., if JSON is <code>[{"Candidate Name": "Test"}]</code>, use <code>{Candidate Name}</code> in template. Ensure a key named "candidate name" (case-insensitive) exists in each object for naming files.</div> </div>
+                        <div class="mb-4 format-options"> <label class="form-label d-block">3. Output Format(s):</label> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="offer_json_format_both" value="both" checked> <label class="form-check-label" for="offer_json_format_both">DOCX & PDF</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="offer_json_format_docx" value="docx"> <label class="form-check-label" for="offer_json_format_docx">DOCX Only</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="offer_json_format_pdf" value="pdf"> <label class="form-check-label" for="offer_json_format_pdf">PDF Only</label> </div> <div class="form-text text-muted mt-1"><small>PDF generation depends on server setup.</small></div> </div> <hr class="my-4">
+                        <button type="submit" class="btn btn-info btn-lg w-100 text-white"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-upload"></i> Generate Bulk Offers (JSON) </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- === RELIEVING LETTER TABS === -->
+            <div class="tab-pane fade" id="relieving-single-content" role="tabpanel" aria-labelledby="relieving-single-tab-pill" tabindex="0">
+                  <div class="form-section">
+                    <h2 class="mb-4 text-danger"><i class="bi bi-person-dash-fill"></i> Generate Single Relieving Letter</h2>
+                    <form id="relieving-single-form" action="{{ url_for('handle_generate_single_relieving') }}" method="post" enctype="multipart/form-data">
+                        {{ template_selection_inputs('relieving-single', user_templates) }}
+                        <hr class="my-4">
+                        <p class="fs-5 mb-3"><strong>2. Employee Details <span class="text-danger">*</span></strong></p>
+                         <div class="row g-3">
+                            <div class="col-md-6 mb-3"> <label for="relieving_name" class="form-label">{name}</label> <input type="text" class="form-control" id="relieving_name" name="name" required> </div>
+                            <div class="col-md-6 mb-3"> <label for="relieving_send_date" class="form-label">{send date}</label> <input type="text" class="form-control" id="relieving_send_date" name="send_date" placeholder="e.g., 15 Aug 2024" required> </div>
+                            <div class="col-md-6 mb-3"> <label for="relieving_role" class="form-label">{role}</label> <input type="text" class="form-control" id="relieving_role" name="role" placeholder="e.g., Senior Developer" required> </div>
+                            <div class="col-md-6 mb-3"> <label for="relieving_working_date" class="form-label">{working date}</label> <input type="text" class="form-control" id="relieving_working_date" name="working_date" placeholder="Employee's Start Date" required> </div>
+                            <div class="col-md-6 mb-3"> <label for="relieving_accepted_date" class="form-label">{accepted date}</label> <input type="text" class="form-control" id="relieving_accepted_date" name="accepted_date" placeholder="Resignation Accept Date" required> </div>
+                            <div class="col-md-6 mb-3"> <label for="relieving_relieved_date" class="form-label">{relieved date}</label> <input type="text" class="form-control" id="relieving_relieved_date" name="relieved_date" placeholder="Last Working Day" required> </div>
+                            <div class="col-md-6 mb-3"> <label for="relieving_hr_name" class="form-label">{hr name}</label> <input type="text" class="form-control" id="relieving_hr_name" name="hr_name" required> </div>
+                         </div> <hr class="my-4">
+                         <button type="submit" class="btn btn-danger btn-lg w-100"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-person-dash"></i> Generate Relieving Letter </button>
+                    </form>
+                 </div>
+            </div>
+
+             <div class="tab-pane fade" id="relieving-manual-content" role="tabpanel" aria-labelledby="relieving-manual-tab-pill" tabindex="0">
+                <div class="form-section">
+                    <h2 class="mb-4 text-danger"><i class="bi bi-pencil-fill"></i> Manual Bulk Relieving Entry</h2>
+                     <form id="relieving-manual-form" action="{{ url_for('handle_generate_bulk_manual_relieving') }}" method="post" enctype="multipart/form-data">
+                        {{ template_selection_inputs('relieving-manual', user_templates) }}
+                        <hr>
+                        <div class="mb-4 row g-3 align-items-end border-bottom pb-3">
+                             <div class="col-md-8"> <label for="num_letters_manual_relieving" class="form-label fw-bold">2. How many relieving letters?</label> <input type="number" class="form-control" id="num_letters_manual_relieving" name="num_letters_display_only" min="1" max="20" value="2"> <div class="form-text">Enter number of letters (max 20). This number is only for UI generation below.</div> </div>
+                             <div class="col-md-4"> <button type="button" class="btn btn-secondary w-100" id="generate-manual-relieving-forms-btn">Load Relieving Entry Forms</button> </div>
+                        </div>
+                        <p class="fs-5 mb-3"><strong>3. Fill Details for Each Relieving Letter: <span class="text-danger">*</span></strong></p>
+                        <div id="manual-relieving-forms-container" class="mb-4"> <p class="text-center text-muted">(Click "Load Relieving Entry Forms" above first)</p> </div>
+                        <div class="mb-4 format-options"> <label class="form-label d-block fw-bold">4. Choose Output Format(s):</label> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="manual_relieving_format_both" value="both" checked> <label class="form-check-label" for="manual_relieving_format_both">DOCX & PDF</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="manual_relieving_format_docx" value="docx"> <label class="form-check-label" for="manual_relieving_format_docx">DOCX Only</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="manual_relieving_format_pdf" value="pdf"> <label class="form-check-label" for="manual_relieving_format_pdf">PDF Only</label> </div> <div class="form-text text-muted mt-1"><small>PDF generation depends on server setup.</small></div> </div> <hr class="my-4">
+                        <button type="submit" class="btn btn-danger btn-lg w-100"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-stack"></i> Generate All Manual Relieving Letters </button>
+                    </form>
+                </div>
+             </div>
+
+            <div class="tab-pane fade" id="relieving-csv-content" role="tabpanel" aria-labelledby="relieving-csv-tab-pill" tabindex="0">
+                  <div class="form-section">
+                    <h2 class="mb-4 text-success"><i class="bi bi-filetype-csv"></i> Bulk Relieving Letters (CSV)</h2>
+                    <form id="relieving-csv-form" action="{{ url_for('handle_generate_bulk') }}" method="post" enctype="multipart/form-data">
+                         <input type="hidden" name="letter_type" value="relieving"> <input type="hidden" name="source_type" value="csv">
+                        {{ template_selection_inputs('relieving-csv', user_templates) }}
+                        <div class="mb-3"> <label for="data_relieving_csv" class="form-label">2. Employee Data (CSV) <span class="text-danger">*</span></label> <input type="file" class="form-control" id="data_relieving_csv" name="data_file" accept=".csv" required> <div class="help-block"> CSV headers will be used as {placeholders} in your template. E.g., if CSV has header "Employee Name", use <code>{Employee Name}</code> in template. Ensure a column named "name" (case-insensitive) exists for naming files. </div> </div>
+                        <div class="mb-4 format-options"> <label class="form-label d-block">3. Output Format(s):</label> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="rel_csv_format_both" value="both" checked> <label class="form-check-label" for="rel_csv_format_both">DOCX & PDF</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="rel_csv_format_docx" value="docx"> <label class="form-check-label" for="rel_csv_format_docx">DOCX Only</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="rel_csv_format_pdf" value="pdf"> <label class="form-check-label" for="rel_csv_format_pdf">PDF Only</label> </div> <div class="form-text text-muted mt-1"><small>PDF generation depends on server setup.</small></div> </div> <hr class="my-4">
+                        <button type="submit" class="btn btn-success btn-lg w-100"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-upload"></i> Generate Bulk Relieving (CSV) </button>
+                    </form>
+                 </div>
+            </div>
+             <div class="tab-pane fade" id="relieving-json-content" role="tabpanel" aria-labelledby="relieving-json-tab-pill" tabindex="0">
+                 <div class="form-section">
+                    <h2 class="mb-4 text-info"><i class="bi bi-filetype-json"></i> Bulk Relieving Letters (JSON)</h2>
+                    <form id="relieving-json-form" action="{{ url_for('handle_generate_bulk') }}" method="post" enctype="multipart/form-data">
+                         <input type="hidden" name="letter_type" value="relieving"> <input type="hidden" name="source_type" value="json">
+                        {{ template_selection_inputs('relieving-json', user_templates) }}
+                        <div class="mb-3"> <label for="data_relieving_json" class="form-label">2. Employee Data (JSON) <span class="text-danger">*</span></label> <input type="file" class="form-control" id="data_relieving_json" name="data_file" accept=".json" required> <div class="help-block"> JSON should be an array of objects. Keys in objects will be used as {placeholders}. E.g., if JSON is <code>[{"Employee Name": "Test"}]</code>, use <code>{Employee Name}</code> in template. Ensure a key named "name" (case-insensitive) exists in each object for naming files. </div> </div>
+                        <div class="mb-4 format-options"> <label class="form-label d-block">3. Output Format(s):</label> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="rel_json_format_both" value="both" checked> <label class="form-check-label" for="rel_json_format_both">DOCX & PDF</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="rel_json_format_docx" value="docx"> <label class="form-check-label" for="rel_json_format_docx">DOCX Only</label> </div> <div class="form-check form-check-inline"> <input class="form-check-input" type="radio" name="output_format" id="rel_json_format_pdf" value="pdf"> <label class="form-check-label" for="rel_json_format_pdf">PDF Only</label> </div> <div class="form-text text-muted mt-1"><small>PDF generation depends on server setup.</small></div> </div> <hr class="my-4">
+                        <button type="submit" class="btn btn-info btn-lg w-100 text-white"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-upload"></i> Generate Bulk Relieving (JSON) </button>
+                    </form>
+                 </div>
+             </div>
+            
+            <!-- === MANAGE TEMPLATES TAB === -->
+            <div class="tab-pane fade" id="manage-templates-content" role="tabpanel" aria-labelledby="manage-templates-tab-pill" tabindex="0">
+                <div class="form-section">
+                    <h2 class="mb-4 text-secondary"><i class="bi bi-collection-fill"></i> Manage Document Templates</h2>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">Upload New Template to Library</div>
+                        <div class="card-body">
+                            <form action="{{ url_for('handle_upload_user_template') }}" method="post" enctype="multipart/form-data" id="manage-templates-upload-form">
+                                <div class="mb-3">
+                                    <label for="user_template_file_upload" class="form-label">Select .docx template file <span class="text-danger">*</span></label>
+                                    <input type="file" class="form-control" id="user_template_file_upload" name="user_template_file" accept=".docx" required>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="overwrite_template" id="overwrite_template_checkbox" value="true">
+                                    <label class="form-check-label" for="overwrite_template_checkbox">
+                                        Overwrite if template with same name already exists
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-success"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-cloud-upload-fill"></i> Upload to Library</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">Existing Templates in Library</div>
+                        <div class="card-body">
+                            {% if user_templates %}
+                            <ul class="list-group">
+                                {% for template_name in user_templates %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-file-earmark-word me-2"></i>{{ template_name }}</span>
+                                    <form action="{{ url_for('handle_delete_user_template', filename=template_name) }}" method="post" class="d-inline delete-template-form" onsubmit="return confirm('Are you sure you want to delete the template \'{{ template_name|e }}\'? This action cannot be undone.');">
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                            <i class="bi bi-trash-fill"></i> Delete
+                                        </button>
+                                    </form>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-muted">No templates found in your library. Upload one using the form above.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Converter Tab -->
+            <div class="tab-pane fade" id="converter-content" role="tabpanel" aria-labelledby="converter-tab-pill" tabindex="0">
+                 <div class="form-section">
+                    <h2 class="mb-4 text-secondary"><i class="bi bi-arrow-repeat"></i> DOCX to PDF Converter</h2>
+                    <p class="text-muted">Convert a single Word (.docx) file directly to PDF format.</p>
+                    <form id="converter-form" action="{{ url_for('handle_convert_to_pdf') }}" method="post" enctype="multipart/form-data">
+                         <div class="mb-4"> <label for="docx_file_converter" class="form-label">1. Upload DOCX File <span class="text-danger">*</span></label> <input type="file" class="form-control" id="docx_file_converter" name="docx_file" accept=".docx" required> <div class="help-block">Select the Word document. Server dependencies (e.g., Microsoft Word or LibreOffice) must be installed for conversion.</div> </div> <hr class="my-4">
+                         <button type="submit" class="btn btn-secondary btn-lg w-100"> <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span> <i class="bi bi-file-earmark-arrow-down-fill"></i> Convert to PDF </button>
+                    </form>
+                 </div>
+            </div><!-- /#converter-content -->
+
+        </div> <!-- /#pills-tabContent -->
+    </div> <!-- /container -->
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3"> <div class="container text-center"> <span class="text-muted">BKM Document Tools © {{ current_year }}</span> </div> </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            // --- Loading state for ALL submit buttons ---
+            const allForms = document.querySelectorAll('form');
+            allForms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    // Use Bootstrap's built-in validation. If it fails, prevent submission and let Bootstrap show errors.
+                    if (!form.checkValidity()) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        form.classList.add('was-validated'); 
+                        // Ensure spinner is hidden and button re-enabled if validation fails early client-side.
+                        const submitBtn = form.querySelector('button[type="submit"]');
+                        if(submitBtn) { 
+                            submitBtn.disabled = false; 
+                            const spinner = submitBtn.querySelector('.spinner-border-sm'); 
+                            if(spinner) spinner.classList.add('d-none'); 
+                        }
+                        return; 
+                    }
+                    // If valid, show spinner
+                    const submitButton = form.querySelector('button[type="submit"]');
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                        const spinner = submitButton.querySelector('.spinner-border-sm');
+                        if (spinner) { spinner.classList.remove('d-none'); }
+                    }
+                });
+            });
+            
+            // --- Template Choice UI Logic ---
+            function updateTemplateChoiceVisibility(radio) {
+                const formPrefix = radio.dataset.formPrefix;
+                const idSuffix = radio.dataset.formIdSuffix || ""; // Handle cases where suffix might not be defined
+                
+                const existingGroup = document.querySelector(`.${formPrefix}-existing-template-group${idSuffix}`);
+                const newGroup = document.querySelector(`.${formPrefix}-new-template-upload-group${idSuffix}`);
+                
+                if (!existingGroup || !newGroup) return;
+
+                const fileInput = newGroup.querySelector('input[type="file"]');
+                const selectInput = existingGroup.querySelector('select');
+
+                if (radio.value === 'existing_template') {
+                    existingGroup.style.display = 'block';
+                    if(selectInput) selectInput.required = true;
+                    newGroup.style.display = 'none';
+                    if(fileInput) { fileInput.required = false; fileInput.value = ''; } // Clear file input
+                } else { // 'upload_new_template'
+                    existingGroup.style.display = 'none';
+                    if(selectInput) { selectInput.required = false; selectInput.selectedIndex = 0; } // Reset select
+                    newGroup.style.display = 'block';
+                    if(fileInput) fileInput.required = true;
+                }
+            }
+
+            document.querySelectorAll('.template-choice-radio').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    updateTemplateChoiceVisibility(this);
+                });
+                // Initialize visibility based on currently checked radio
+                if (radio.checked) {
+                    updateTemplateChoiceVisibility(radio);
+                }
+            });
+
+
+            // --- Manual Bulk Forms Generation (Offer) ---
+            const generateManualOfferFormsBtn = document.getElementById('generate-manual-offer-forms-btn');
+            const numLettersManualOfferInput = document.getElementById('num_letters_manual_offer');
+            const manualOfferFormsContainer = document.getElementById('manual-offer-forms-container');
+
+             if (generateManualOfferFormsBtn && numLettersManualOfferInput && manualOfferFormsContainer) {
+                generateManualOfferFormsBtn.addEventListener('click', () => {
+                    const numLetters = parseInt(numLettersManualOfferInput.value, 10);
+                    if (isNaN(numLetters) || numLetters < 1 || numLetters > 20) { alert('Please enter a number between 1 and 20 for offers.'); return; }
+
+                    manualOfferFormsContainer.innerHTML = ''; 
+
+                    for (let i = 0; i < numLetters; i++) {
+                        // Names here MUST match Python's form_to_placeholder keys for handle_generate_bulk_manual_offer
+                        const formHtml = `
+                        <div class="manual-entry-block">
+                            <h5 class="mb-3">Offer Letter #${i + 1} Details:</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_candidate_name_${i}" class="form-label">{candidate name}</label> <input type="text" class="form-control form-control-sm" id="manual_offer_candidate_name_${i}" name="candidate_name" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_send_date_${i}" class="form-label">{send date}</label> <input type="text" class="form-control form-control-sm" id="manual_offer_send_date_${i}" name="send_date" placeholder="Date" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_designation_${i}" class="form-label">{designation}</label> <input type="text" class="form-control form-control-sm" id="manual_offer_designation_${i}" name="designation" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_fdesignation_${i}" class="form-label">{fdesignation} <small class="text-muted">(Opt)</small></label> <input type="text" class="form-control form-control-sm" id="manual_offer_fdesignation_${i}" name="fdesignation"> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_email_${i}" class="form-label">{email}</label> <input type="email" class="form-control form-control-sm" id="manual_offer_email_${i}" name="email" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_mobile_number_${i}" class="form-label">{mobile number}</label> <input type="tel" class="form-control form-control-sm" id="manual_offer_mobile_number_${i}" name="mobile_number" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_dear_name_${i}" class="form-label">{dear name}</label> <input type="text" class="form-control form-control-sm" id="manual_offer_dear_name_${i}" name="dear_name" placeholder="Greeting name" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_joining_date_${i}" class="form-label">{joining date}</label> <input type="text" class="form-control form-control-sm" id="manual_offer_joining_date_${i}" name="joining_date" placeholder="Date" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_hr_name_${i}" class="form-label">{hr name}</label> <input type="text" class="form-control form-control-sm" id="manual_offer_hr_name_${i}" name="hr_name" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_offer_lpa_${i}" class="form-label">{lpa} <small class="text-muted">(LPA)</small></label> <input type="text" class="form-control form-control-sm" id="manual_offer_lpa_${i}" name="lpa" placeholder="e.g., 6" required> </div>
+                            </div>
+                        </div>`;
+                        manualOfferFormsContainer.insertAdjacentHTML('beforeend', formHtml);
+                    }
+                });
+            }
+
+
+            // --- Manual Bulk Forms Generation (Relieving) ---
+            const generateManualRelievingFormsBtn = document.getElementById('generate-manual-relieving-forms-btn');
+            const numLettersManualRelievingInput = document.getElementById('num_letters_manual_relieving');
+            const manualRelievingFormsContainer = document.getElementById('manual-relieving-forms-container');
+
+            if (generateManualRelievingFormsBtn && numLettersManualRelievingInput && manualRelievingFormsContainer) {
+                generateManualRelievingFormsBtn.addEventListener('click', () => {
+                    const numLetters = parseInt(numLettersManualRelievingInput.value, 10);
+                    if (isNaN(numLetters) || numLetters < 1 || numLetters > 20) { alert('Please enter a number between 1 and 20 for relieving letters.'); return; }
+
+                    manualRelievingFormsContainer.innerHTML = ''; 
+                    for (let i = 0; i < numLetters; i++) {
+                         // Names here MUST match Python's form_to_placeholder keys for handle_generate_bulk_manual_relieving
+                        const formHtml = `
+                        <div class="manual-entry-block">
+                            <h5 class="mb-3">Relieving Letter #${i + 1} Details:</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6 mb-3"> <label for="manual_relieving_name_${i}" class="form-label">{name}</label> <input type="text" class="form-control form-control-sm" id="manual_relieving_name_${i}" name="name" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_relieving_send_date_${i}" class="form-label">{send date}</label> <input type="text" class="form-control form-control-sm" id="manual_relieving_send_date_${i}" name="send_date" placeholder="Date" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_relieving_role_${i}" class="form-label">{role}</label> <input type="text" class="form-control form-control-sm" id="manual_relieving_role_${i}" name="role" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_relieving_working_date_${i}" class="form-label">{working date}</label> <input type="text" class="form-control form-control-sm" id="manual_relieving_working_date_${i}" name="working_date" placeholder="Start Date" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_relieving_accepted_date_${i}" class="form-label">{accepted date}</label> <input type="text" class="form-control form-control-sm" id="manual_relieving_accepted_date_${i}" name="accepted_date" placeholder="Resignation Accept Date" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_relieving_relieved_date_${i}" class="form-label">{relieved date}</label> <input type="text" class="form-control form-control-sm" id="manual_relieving_relieved_date_${i}" name="relieved_date" placeholder="Last Working Day" required> </div>
+                                <div class="col-md-6 mb-3"> <label for="manual_relieving_hr_name_${i}" class="form-label">{hr name}</label> <input type="text" class="form-control form-control-sm" id="manual_relieving_hr_name_${i}" name="hr_name" required> </div>
+                            </div>
+                        </div>`;
+                        manualRelievingFormsContainer.insertAdjacentHTML('beforeend', formHtml);
+                    }
+                });
+            }
+
+            // --- Activate tab based on anchor or server-side variable ---
+            let activeTabId = null;
+            const urlHash = window.location.hash;
+            
+            // Check if active_tab is passed from Flask (e.g., after form submission)
+            const flaskActiveTab = "{{ active_tab or '' }}"; // Get from Jinja, default to empty string
+
+            if (urlHash) { // #anchor from URL takes highest priority
+                const an_id = urlHash.substring(1);
+                const pillForAnchor = document.getElementById(an_id.replace('-content', '-tab-pill'));
+                 if (pillForAnchor) {
+                    activeTabId = an_id; 
+                 }
+            } else if (flaskActiveTab) { // Then check Flask's active_tab variable
+                activeTabId = flaskActiveTab;
+            }
+            
+            // Default to the first tab if no other active tab is specified
+            if (!activeTabId) {
+                const firstTabPill = document.querySelector('.nav-pills .nav-link');
+                if (firstTabPill) {
+                    activeTabId = firstTabPill.getAttribute('data-bs-target').substring(1); // e.g. #offer-single-content -> offer-single-content
+                }
+            }
+            
+            if (activeTabId) {
+                const tabPillToActivate = document.getElementById(activeTabId.replace('-content', '-tab-pill'));
+                const tabPaneToActivate = document.getElementById(activeTabId);
+
+                if (tabPillToActivate && tabPaneToActivate) {
+                    // Deactivate any currently active tab (if any)
+                    document.querySelectorAll('.nav-pills .nav-link.active').forEach(activePill => activePill.classList.remove('active'));
+                    document.querySelectorAll('.tab-content .tab-pane.active.show').forEach(activePane => activePane.classList.remove('active', 'show'));
+                    
+                    // Activate the target tab
+                    tabPillToActivate.classList.add('active');
+                    tabPaneToActivate.classList.add('show', 'active');
+                } else {
+                     // Fallback if IDs are mismatched: activate the very first tab.
+                    const firstTabPill = document.querySelector('.nav-pills .nav-link');
+                    const firstTabPane = document.querySelector('.tab-content .tab-pane');
+                    if (firstTabPill && firstTabPane) {
+                        firstTabPill.classList.add('active');
+                        firstTabPane.classList.add('show', 'active');
+                    }
+                }
+            }
+             // Clean the hash from URL if it was used only for tab state to prevent issues on reload
+            if (urlHash && (urlHash.includes('-content') || urlHash.includes('-tab-pill'))) {
+                 history.replaceState(null, null, ' ');
+            }
+
+
+        }); // End DOMContentLoaded
+    </script>
+</body>
+</html>
