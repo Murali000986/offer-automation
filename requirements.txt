@@ -1,0 +1,24 @@
+# Requirements for the BKM Document Tools Flask App
+# Install these using: pip install -r requirements.txt
+
+# Core web framework
+Flask>=2.3.0    # Use the specific version you developed/tested with if possible (check via 'pip freeze')
+
+# Data handling, primarily for CSV/JSON reading via pandas
+pandas>=1.5.0   # Use the specific version you developed/tested with if possible
+
+# Reading and manipulating .docx files
+python-docx>=1.1.0 # Use the specific version you developed/tested with if possible
+
+# For converting DOCX to PDF
+# IMPORTANT: This library has system-level dependencies that CANNOT be installed via pip.
+# - On Windows: Requires Microsoft Word to be installed.
+# - On Linux/macOS: Requires LibreOffice to be installed (ensure 'soffice' command works).
+# Make sure the appropriate dependency is installed on the server where this runs.
+docx2pdf>=0.1.8 # Use the specific version you developed/tested with if possible
+
+# --- Optional: For Production Deployment ---
+# If you deploy using a production WSGI server (recommended over app.run(debug=True)),
+# uncomment the one you choose:
+# waitress # Simple, cross-platform WSGI server
+# gunicorn # Common WSGI server for Linux/macOS (requires Linux/macOS)
